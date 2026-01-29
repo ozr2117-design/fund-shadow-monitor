@@ -186,4 +186,166 @@ def main():
                         history[today_str] = snapshot_data
                         save_json('history.json', history, hist_sha, f"Snapshot {today_str}")
                         st.success(f"✅ {today_str} 影子版快照已保存！")
-                        st.json(snapshot_data
+                        st.json(snapshot_data)
+                    else:
+                        st.error("行情获取失败")
+
+        # --- ⚖️ 模式 C: 晚间审计 (集成系数记录) ---
+        elif mode == "⚖️ 晚间审计":
+            st.info("ℹ️ 对比'昨日快照'与'官方净值'，自动修正并记录系数。")
+            history, hist_sha = load_json('history.json')
+            if history:
+                last_date = sorted(history.keys())[-1]
+                st.markdown(f"📅 审计目标：**{last_date}**")
+                
+                if st.button("🚀 开始审计"):
+                    updates_log = []
+                    need_save = False
+                    current_factors_log = {} # 用于记录新系数
+                    progress_bar = st.progress(0)
+                    
+                    for idx, (name, info) in enumerate(funds_config.items()):
+                        mixed_est = history[last_date].get(name)
+                        code = FUND_CODES_MAP.get(name)
+                        
+                        # 先记录旧系数兜底
+                        current_factors_log[name] = info['factor']
+                        
+                        if mixed_est is not None and code:
+                            off_pct, off_date = get_official_nav(code)
+                            
+                            # 简单的日期校验，只要官方日期 >= 快照日期就算更新了
+                            if off_date and off_date >= last_date:
+                                if mixed_est != 0:
+                                    perfect_factor = off_pct / mixed_est
+                                    old_factor = info['factor']
+                                    
+                                    # V5 影子版修正力度：15%
+                                    new_factor = (old_factor * 0.85) + (perfect_factor * 0.15)
+                                    
+                                    funds_config[name]['factor'] = round(new_factor, 4)
+                                    current_factors_log[name] = round(new_factor, 4)
+                                    
+                                    updates_log.append(f"✅ {name}: {old_factor} -> {new_factor:.4f}")
+                                    need_save = True
+                            else:
+                                updates_log.append(f"⏳ {name}: 官方数据未更新")
+                        else:
+                            updates_log.append(f"❌ {name}: 缺少代码或快照")
+                            
+                        progress_bar.progress((idx + 1) / len(funds_config))
+                    
+                    if need_save:
+                        # 保存配置
+                        save_json('funds.json', funds_config, config_sha, f"Audit Update {last_date}")
+                        # 保存系数历史
+                        save_factor_history(last_date, current_factors_log)
+                        
+                        st.balloons()
+                        st.success("系数已修正并归档！系统即将重启...")
+                        time.sleep(3)
+                        st.rerun()
+                    else:
+                        st.text("\n".join(updates_log))
+            else:
+                st.error("无历史快照")
+
+        # --- 📊 侧边栏常驻：趋势分析 ---
+        st.divider()
+        with st.expander("📈 模型稳定性分析", expanded=False):
+            factor_hist, _ = load_json('factor_history.json')
+            if factor_hist:
+                df = pd.DataFrame.from_dict(factor_hist, orient='index')
+                df = df.sort_index()
+                if not df.empty:
+                    st.caption("系数走势 (越平越好)")
+                    st.line_chart(df)
+                    st.markdown("**稳定性评分 (标准差):**")
+                    std_devs = df.std()
+                    for name, val in std_devs.items():
+                        color = "green" if val < 0.05 else "red"
+                        short_name = name.split('(')[0]
+                        st.markdown(f"- {short_name}: :{color}[{val:.4f}]")
+            else:
+                st.caption("暂无历史数据，请执行一次晚间审计生成。")
+
+    # ==========================================
+    # 👇 主界面：实时监控 (含影子修正)
+    # ==========================================
+    if mode == "📡 实时监控":
+        placeholder = st.empty()
+        
+        all_codes = list(MARKET_INDICES.keys())
+        for f in funds_config.values():
+            for s in f['holdings']: all_codes.append(s['code'])
+            if 'shadow_code' in f: all_codes.append(f['shadow_code'])
+        all_codes = list(set(all_codes))
+        
+        while True:
+            with placeholder.container():
+                market_data = get_realtime_price(all_codes)
+                if not market_data:
+                    st.warning("📡 连接卫星中...")
+                    time.sleep(2)
+                    continue
+                
+                # 1. 顶部状态栏
+                bj_time = datetime.utcnow() + timedelta(hours=8)
+                st.caption(f"最后刷新: {bj_time.strftime('%H:%M:%S')} (影子修正Pro)")
+                
+                # 2. 市场风向
+                st.subheader("📈 市场风向")
+                col1, col2, col3 = st.columns(3)
+                cols = [col1, col2, col3]
+                for i, code in enumerate(MARKET_INDICES):
+                    info = market_data.get(code)
+                    if info: cols[i].metric(MARKET_INDICES[code], f"{info['change']:.2f}%")
+                st.divider()
+
+                # 3. 基金卡片
+                for fund_name, fund_info in funds_config.items():
+                    holdings = fund_info['holdings']
+                    factor = fund_info.get('factor', 1.0)
+                    shadow_code = fund_info.get('shadow_code')
+                    shadow_w = fund_info.get('shadow_weight', 0.0)
+                    
+                    # 算持仓
+                    total_val = 0
+                    total_w = 0
+                    top_stocks = []
+                    for s in holdings:
+                        info = market_data.get(s['code'])
+                        if info:
+                            total_val += info['change'] * s['weight']
+                            total_w += s['weight']
+                            if len(top_stocks) < 5:
+                                top_stocks.append({"股票": info['name'], "涨跌": f"{info['change']:+.2f}%"})
+                    
+                    raw_holdings = total_val / total_w if total_w > 0 else 0
+                    
+                    # 算影子
+                    shadow_est = 0
+                    shadow_name = "未配置"
+                    if shadow_code and shadow_code in market_data:
+                        shadow_est = market_data[shadow_code]['change']
+                        shadow_name = market_data[shadow_code]['name']
+                    
+                    # 混合
+                    mixed_est = (raw_holdings * (1 - shadow_w)) + (shadow_est * shadow_w)
+                    final_est = mixed_est * factor
+                    
+                    color = "red" if final_est > 0 else "green"
+                    emoji = "🔥" if final_est > 0 else "❄️"
+                    
+                    with st.expander(f"{emoji} {fund_name.split('(')[0]} | {final_est:+.2f}%"):
+                        st.markdown(f"**最终估值**: :{color}[{final_est:+.2f}%]")
+                        st.caption(f"""
+                        🧮 **拆解**: 持仓({100-shadow_w*100:.0f}%) `{raw_holdings:.2f}%` + 影子 `{shadow_est:.2f}%` ({shadow_name})
+                        🔧 **系数**: `{factor}`
+                        """)
+                        st.table(top_stocks)
+            
+            time.sleep(30)
+
+if __name__ == "__main__":
+    main()
