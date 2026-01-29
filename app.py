@@ -59,7 +59,20 @@ def save_json(filename, data, sha, message):
             repo.update_file(filename, message, new_content, sha)
         else:
             repo.create_file(filename, message, new_content)
-
+def save_factor_history(date_str, new_factors_dict):
+    """
+    📈 记录仪：把当天的系数保存下来
+    """
+    history, sha = load_json('factor_history.json')
+    # 如果文件不存在或读取失败，初始化为空
+    if not isinstance(history, dict):
+        history = {}
+    
+    # 记录当天数据
+    history[date_str] = new_factors_dict
+    
+    # 保存回 GitHub
+    save_json('factor_history.json', history, sha, f"Factor Log {date_str}")
 # === 🕷️ 数据获取 ===
 
 def get_realtime_price(stock_codes):
@@ -149,7 +162,36 @@ def main():
         st.header("🎮 控制台")
         mode = st.radio("选择模式", ["📡 实时监控", "💾 收盘存证", "⚖️ 晚间审计"])
         st.divider()
-
+# === 📊 下方常驻：系数稳定性分析 ===
+    st.sidebar.divider()
+    with st.sidebar.expander("📈 模型稳定性分析", expanded=False):
+        factor_hist, _ = load_json('factor_history.json')
+        
+        if factor_hist:
+            import pandas as pd
+            
+            # 1. 数据转换
+            df = pd.DataFrame.from_dict(factor_hist, orient='index')
+            # 按日期排序
+            df = df.sort_index()
+            
+            if not df.empty:
+                st.caption("系数走势 (越平滑越好)")
+                st.line_chart(df)
+                
+                # 2. 自动计算波动率 (稳定性指标)
+                st.markdown("**稳定性评分 (标准差):**")
+                st.caption("数值越小 = 模型越稳")
+                
+                # 计算标准差 (Std Dev)
+                std_devs = df.std()
+                for name, val in std_devs.items():
+                    # 给个评分颜色
+                    color = "green" if val < 0.05 else "red"
+                    short_name = name.split('(')[0]
+                    st.markdown(f"- {short_name}: :{color}[{val:.4f}]")
+        else:
+            st.caption("暂无系数历史数据")
         # --- 💾 模式 B: 收盘存证 ---
         if mode == "💾 收盘存证":
             st.info("ℹ️ 最佳操作时间：收盘后 (15:00 - 23:59)。")
@@ -198,8 +240,10 @@ def main():
 
         # --- ⚖️ 模式 C: 晚间审计 ---
         elif mode == "⚖️ 晚间审计":
+            elif mode == "⚖️ 晚间审计":
             st.info("ℹ️ 对比'昨日混合快照'与'官方净值'，自动修正系数。")
             history, hist_sha = load_json('history.json')
+            
             if history:
                 last_date = sorted(history.keys())[-1]
                 st.markdown(f"📅 审计目标：**{last_date}**")
@@ -207,22 +251,41 @@ def main():
                 if st.button("🚀 开始审计"):
                     updates_log = []
                     need_save = False
+                    # 准备一个字典，用来存今天最新的系数
+                    current_factors_log = {} 
+                    
                     progress_bar = st.progress(0)
                     
                     for idx, (name, info) in enumerate(funds_config.items()):
-                        mixed_est = history[last_date].get(name)
+                        # V4/V5 通用逻辑: 获取昨天的估值记录
+                        # (注意：V4存的是 raw_est, V5存的是 mixed_est，变量名可能不同，但逻辑一样)
+                        # 这里统一用 snapshot_val 代替
+                        snapshot_val = history[last_date].get(name)
+                        
                         code = FUND_CODES_MAP.get(name)
                         
-                        if mixed_est is not None and code:
+                        # 默认先记录旧系数，万一没更新就用旧的
+                        current_factors_log[name] = info['factor']
+                        
+                        if snapshot_val is not None and code:
                             off_pct, off_date = get_official_nav(code)
+                            
                             if off_date and off_date >= last_date:
-                                if mixed_est != 0:
-                                    perfect_factor = off_pct / mixed_est
+                                if snapshot_val != 0:
+                                    perfect_factor = off_pct / snapshot_val
                                     old_factor = info['factor']
-                                    # 影子版减震器 (保留85%旧系数，更稳健)
-                                    new_factor = (old_factor * 0.85) + (perfect_factor * 0.15)
+                                    
+                                    # === 你的 V4 或 V5 修正公式 ===
+                                    # V4: new_factor = (old_factor * 0.9) + (perfect_factor * 0.1)
+                                    # V5: new_factor = (old_factor * 0.85) + (perfect_factor * 0.15)
+                                    # 👇 请保留你当前版本原本的公式 👇
+                                    new_factor = (old_factor * 0.85) + (perfect_factor * 0.15) 
                                     
                                     funds_config[name]['factor'] = round(new_factor, 4)
+                                    
+                                    # 更新日志字典
+                                    current_factors_log[name] = round(new_factor, 4)
+                                    
                                     updates_log.append(f"✅ {name}: {old_factor} -> {new_factor:.4f}")
                                     need_save = True
                             else:
@@ -230,9 +293,15 @@ def main():
                         progress_bar.progress((idx + 1) / len(funds_config))
                     
                     if need_save:
+                        # 1. 保存新的配置 funds.json
                         save_json('funds.json', funds_config, config_sha, f"Audit Update {last_date}")
+                        
+                        # 2. 🔥 新增：保存系数历史到 factor_history.json
+                        st.caption("正在记录系数走势...")
+                        save_factor_history(last_date, current_factors_log)
+                        
                         st.balloons()
-                        st.success("系数已修正，系统即将重启...")
+                        st.success("系数已修正并归档！系统即将重启...")
                         time.sleep(3)
                         st.rerun()
                     else:
