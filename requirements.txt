@@ -1,0 +1,4 @@
+requests
+streamlit
+PyGithub
+pandas
