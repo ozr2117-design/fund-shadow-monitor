@@ -95,17 +95,46 @@ def get_realtime_price(stock_codes):
     return price_data
 
 def get_official_nav(fund_code):
-    """第三方接口获取官方净值"""
-    url = f"https://api.doctorxiong.club/v1/fund/detail?code={fund_code}"
+    """
+    🚀 升级版爬虫：直连天天基金(东财)官方接口
+    需要伪装 Headers，数据最快最全。
+    """
+    # 官方历史净值接口 (LSJZ = Lishi Jingzhi)
+    # pageIndex=1&pageSize=1 表示只取最新的一条数据
+    url = f"https://api.fund.eastmoney.com/f10/lsjz?fundCode={fund_code}&pageIndex=1&pageSize=1"
+    
+    # ⚠️ 关键：东财接口必须带 Referer，否则会报 403 Forbidden
+    headers = {
+        "Referer": "http://fund.eastmoney.com/",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    
     try:
-        r = requests.get(url, timeout=5)
+        r = requests.get(url, headers=headers, timeout=5)
         if r.status_code == 200:
             res = r.json()
-            if res['code'] == 200:
-                data = res['data']
-                return float(data['lastDayGrowth']), data['netWorthDate']
-    except:
+            # 解析官方数据结构: Data -> LSJZList -> 第一个元素
+            if "Data" in res and "LSJZList" in res["Data"]:
+                data_list = res["Data"]["LSJZList"]
+                if len(data_list) > 0:
+                    latest_data = data_list[0]
+                    
+                    # 字段说明：
+                    # FSRQ: 净值日期 (例如 2026-01-29)
+                    # JZZZL: 日增长率 (例如 1.25 表示 +1.25%)
+                    
+                    net_date = latest_data["FSRQ"]
+                    growth_rate = latest_data["JZZZL"]
+                    
+                    # 容错处理：有时候刚更新净值但涨跌幅还是空字符串
+                    if growth_rate == "":
+                        return None, None
+                        
+                    return float(growth_rate), net_date
+    except Exception as e:
+        # 调试时可以打印错误 st.error(f"接口报错: {e}") 
         pass
+    
     return None, None
 
 # === 🚀 主程序 ===
