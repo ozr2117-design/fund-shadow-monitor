@@ -1,6 +1,6 @@
 {
     "财通优选C (金梓才/AI)": {
-        "factor": 0.8696,
+        "factor": 0.8385,
         "shadow_code": "sh515050",
         "shadow_weight": 0.3,
         "holdings": [
@@ -57,7 +57,7 @@
         ]
     },
     "摩根均衡C (梁鹏/周期)": {
-        "factor": -6.9876,
+        "factor": -8.8539,
         "shadow_code": "sz159881",
         "shadow_weight": 0.25,
         "holdings": [
