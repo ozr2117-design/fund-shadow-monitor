@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 import time
 import json
-import pandas as pd # 记得在 requirements.txt 里加上 pandas
+import pandas as pd 
 from datetime import datetime, timedelta
 from github import Github
 
@@ -20,7 +20,7 @@ MARKET_INDICES = {
     'hkHSTECH': '恒生科技'
 }
 
-# ⚠️ 请确保这里是真实的 6 位基金代码
+# ⚠️ 确保是你真实的 C 类 6 位代码
 FUND_CODES_MAP = {
     '摩根均衡C (梁鹏/周期)': '009968',
     '泰康新锐C (韩庆/成长)': '009340',
@@ -66,7 +66,13 @@ def save_factor_history(date_str, new_factors_dict):
     history, sha = load_json('factor_history.json')
     if not isinstance(history, dict):
         history = {}
-    history[date_str] = new_factors_dict
+    
+    # 获取该日期已有的记录（防止覆盖）
+    existing_record = history.get(date_str, {})
+    # 更新新记录
+    existing_record.update(new_factors_dict)
+    history[date_str] = existing_record
+    
     save_json('factor_history.json', history, sha, f"Factor Log {date_str}")
 
 # === 🕷️ 数据获取 (爬虫模块) ===
@@ -131,7 +137,7 @@ def get_official_nav(fund_code):
 
 # === 🚀 主程序 ===
 def main():
-    st.title("🦅 全域鹰眼 V5.0 (完全体)")
+    st.title("🦅 全域鹰眼 V5.0 (影子版)")
 
     funds_config, config_sha = load_json('funds.json')
     if not funds_config:
@@ -185,46 +191,57 @@ def main():
                         history, hist_sha = load_json('history.json')
                         history[today_str] = snapshot_data
                         save_json('history.json', history, hist_sha, f"Snapshot {today_str}")
+                        
                         st.success(f"✅ {today_str} 影子版快照已保存！")
                         st.json(snapshot_data)
                     else:
                         st.error("行情获取失败")
 
-        # --- ⚖️ 模式 C: 晚间审计 (集成系数记录) ---
+        # --- ⚖️ 模式 C: 晚间审计 (含防重修复 + 系数记录) ---
         elif mode == "⚖️ 晚间审计":
             st.info("ℹ️ 对比'昨日快照'与'官方净值'，自动修正并记录系数。")
             history, hist_sha = load_json('history.json')
+            
+            # 1. 加载打卡记录
+            factor_history, _ = load_json('factor_history.json')
+            
             if history:
                 last_date = sorted(history.keys())[-1]
                 st.markdown(f"📅 审计目标：**{last_date}**")
                 
+                # 获取今日已成功的基金
+                audited_records = factor_history.get(last_date, {}) if factor_history else {}
+                
                 if st.button("🚀 开始审计"):
                     updates_log = []
                     need_save = False
-                    current_factors_log = {} # 用于记录新系数
+                    current_batch_success = {} # 本批次成功的
                     progress_bar = st.progress(0)
                     
                     for idx, (name, info) in enumerate(funds_config.items()):
+                        # === 🛡️ 防重检查 ===
+                        if name in audited_records:
+                            updates_log.append(f"⏭️ {name}: 今日已修正，自动跳过")
+                            progress_bar.progress((idx + 1) / len(funds_config))
+                            continue
+                        # ===================
+                        
                         mixed_est = history[last_date].get(name)
                         code = FUND_CODES_MAP.get(name)
-                        
-                        # 先记录旧系数兜底
-                        current_factors_log[name] = info['factor']
                         
                         if mixed_est is not None and code:
                             off_pct, off_date = get_official_nav(code)
                             
-                            # 简单的日期校验，只要官方日期 >= 快照日期就算更新了
                             if off_date and off_date >= last_date:
                                 if mixed_est != 0:
                                     perfect_factor = off_pct / mixed_est
                                     old_factor = info['factor']
                                     
-                                    # V5 影子版修正力度：15%
+                                    # 修正公式 (V5.0 影子版)
                                     new_factor = (old_factor * 0.85) + (perfect_factor * 0.15)
                                     
                                     funds_config[name]['factor'] = round(new_factor, 4)
-                                    current_factors_log[name] = round(new_factor, 4)
+                                    current_batch_success[name] = round(new_factor, 4)
                                     
                                     updates_log.append(f"✅ {name}: {old_factor} -> {new_factor:.4f}")
                                     need_save = True
@@ -238,15 +255,18 @@ def main():
                     if need_save:
                         # 保存配置
                         save_json('funds.json', funds_config, config_sha, f"Audit Update {last_date}")
-                        # 保存系数历史
-                        save_factor_history(last_date, current_factors_log)
+                        # 保存系数记录 (合并旧记录和本批次新记录)
+                        save_factor_history(last_date, current_batch_success)
                         
                         st.balloons()
                         st.success("系数已修正并归档！系统即将重启...")
                         time.sleep(3)
                         st.rerun()
                     else:
-                        st.text("\n".join(updates_log))
+                        if not updates_log:
+                             st.info("所有基金均已完成今日审计，无需重复操作。")
+                        else:
+                             st.text("\n".join(updates_log))
             else:
                 st.error("无历史快照")
 
@@ -255,19 +275,22 @@ def main():
         with st.expander("📈 模型稳定性分析", expanded=False):
             factor_hist, _ = load_json('factor_history.json')
             if factor_hist:
-                df = pd.DataFrame.from_dict(factor_hist, orient='index')
-                df = df.sort_index()
-                if not df.empty:
-                    st.caption("系数走势 (越平越好)")
-                    st.line_chart(df)
-                    st.markdown("**稳定性评分 (标准差):**")
-                    std_devs = df.std()
-                    for name, val in std_devs.items():
-                        color = "green" if val < 0.05 else "red"
-                        short_name = name.split('(')[0]
-                        st.markdown(f"- {short_name}: :{color}[{val:.4f}]")
+                try:
+                    df = pd.DataFrame.from_dict(factor_hist, orient='index')
+                    df = df.sort_index()
+                    if not df.empty:
+                        st.caption("系数走势 (越平越好)")
+                        st.line_chart(df)
+                        st.markdown("**稳定性评分 (标准差):**")
+                        std_devs = df.std()
+                        for name, val in std_devs.items():
+                            color = "green" if val < 0.05 else "red"
+                            short_name = name.split('(')[0]
+                            st.markdown(f"- {short_name}: :{color}[{val:.4f}]")
+                except:
+                    st.caption("数据不足，无法绘图")
             else:
-                st.caption("暂无历史数据，请执行一次晚间审计生成。")
+                st.caption("暂无历史数据")
 
     # ==========================================
     # 👇 主界面：实时监控 (含影子修正)
