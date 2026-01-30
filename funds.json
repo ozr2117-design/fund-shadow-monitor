@@ -1,19 +1,59 @@
 {
     "财通优选C (金梓才/AI)": {
-        "factor": 1.00,
+        "factor": 0.8466,
         "shadow_code": "sh515050",
         "shadow_weight": 0.3,
         "holdings": [
-            {"code": "sz300502", "name": "新 易 盛", "weight": 9.69},
-            {"code": "sz301377", "name": "鼎泰高科", "weight": 9.64},
-            {"code": "sz300308", "name": "中际旭创", "weight": 9.58},
-            {"code": "sh688498", "name": "源杰科技", "weight": 9.50},
-            {"code": "sh600183", "name": "生益科技", "weight": 9.41},
-            {"code": "sz002463", "name": "沪电股份", "weight": 9.14},
-            {"code": "sh688195", "name": "腾景科技", "weight": 9.03},
-            {"code": "sz300476", "name": "胜宏科技", "weight": 8.77},
-            {"code": "sh688183", "name": "生益电子", "weight": 8.61},
-            {"code": "sh601138", "name": "工业富联", "weight": 6.72}
+            {
+                "code": "sz300502",
+                "name": "新 易 盛",
+                "weight": 9.69
+            },
+            {
+                "code": "sz301377",
+                "name": "鼎泰高科",
+                "weight": 9.64
+            },
+            {
+                "code": "sz300308",
+                "name": "中际旭创",
+                "weight": 9.58
+            },
+            {
+                "code": "sh688498",
+                "name": "源杰科技",
+                "weight": 9.5
+            },
+            {
+                "code": "sh600183",
+                "name": "生益科技",
+                "weight": 9.41
+            },
+            {
+                "code": "sz002463",
+                "name": "沪电股份",
+                "weight": 9.14
+            },
+            {
+                "code": "sh688195",
+                "name": "腾景科技",
+                "weight": 9.03
+            },
+            {
+                "code": "sz300476",
+                "name": "胜宏科技",
+                "weight": 8.77
+            },
+            {
+                "code": "sh688183",
+                "name": "生益电子",
+                "weight": 8.61
+            },
+            {
+                "code": "sh601138",
+                "name": "工业富联",
+                "weight": 6.72
+            }
         ]
     },
     "摩根均衡C (梁鹏/周期)": {
@@ -21,16 +61,56 @@
         "shadow_code": "sz159881",
         "shadow_weight": 0.25,
         "holdings": [
-            {"code": "sz000683", "name": "博源化工", "weight": 8.81},
-            {"code": "sz002714", "name": "牧原股份", "weight": 8.72},
-            {"code": "sh601233", "name": "桐昆股份", "weight": 3.89},
-            {"code": "sz002497", "name": "雅化集团", "weight": 3.69},
-            {"code": "sh600711", "name": "盛屯矿业", "weight": 3.57},
-            {"code": "sz002384", "name": "东山精密", "weight": 3.39},
-            {"code": "sz300750", "name": "宁德时代", "weight": 3.37},
-            {"code": "sh603225", "name": "新 凤 鸣", "weight": 3.36},
-            {"code": "sh600141", "name": "兴发集团", "weight": 3.28},
-            {"code": "sz300014", "name": "亿纬锂能", "weight": 3.09}
+            {
+                "code": "sz000683",
+                "name": "博源化工",
+                "weight": 8.81
+            },
+            {
+                "code": "sz002714",
+                "name": "牧原股份",
+                "weight": 8.72
+            },
+            {
+                "code": "sh601233",
+                "name": "桐昆股份",
+                "weight": 3.89
+            },
+            {
+                "code": "sz002497",
+                "name": "雅化集团",
+                "weight": 3.69
+            },
+            {
+                "code": "sh600711",
+                "name": "盛屯矿业",
+                "weight": 3.57
+            },
+            {
+                "code": "sz002384",
+                "name": "东山精密",
+                "weight": 3.39
+            },
+            {
+                "code": "sz300750",
+                "name": "宁德时代",
+                "weight": 3.37
+            },
+            {
+                "code": "sh603225",
+                "name": "新 凤 鸣",
+                "weight": 3.36
+            },
+            {
+                "code": "sh600141",
+                "name": "兴发集团",
+                "weight": 3.28
+            },
+            {
+                "code": "sz300014",
+                "name": "亿纬锂能",
+                "weight": 3.09
+            }
         ]
     },
     "泰康新锐C (韩庆/成长)": {
@@ -38,16 +118,56 @@
         "shadow_code": "sz399006",
         "shadow_weight": 0.4,
         "holdings": [
-            {"code": "sz002371", "name": "北方华创", "weight": 5.55},
-            {"code": "hk00700", "name": "腾讯控股", "weight": 5.02},
-            {"code": "sh601899", "name": "紫金矿业", "weight": 4.15},
-            {"code": "hk09988", "name": "阿里巴巴", "weight": 3.93},
-            {"code": "sz300274", "name": "阳光电源", "weight": 3.76},
-            {"code": "sz300750", "name": "宁德时代", "weight": 3.35},
-            {"code": "hk00981", "name": "中芯国际", "weight": 3.31},
-            {"code": "sh600487", "name": "亨通光电", "weight": 3.28},
-            {"code": "sh601138", "name": "工业富联", "weight": 3.24},
-            {"code": "sh689009", "name": "九号公司", "weight": 3.20}
+            {
+                "code": "sz002371",
+                "name": "北方华创",
+                "weight": 5.55
+            },
+            {
+                "code": "hk00700",
+                "name": "腾讯控股",
+                "weight": 5.02
+            },
+            {
+                "code": "sh601899",
+                "name": "紫金矿业",
+                "weight": 4.15
+            },
+            {
+                "code": "hk09988",
+                "name": "阿里巴巴",
+                "weight": 3.93
+            },
+            {
+                "code": "sz300274",
+                "name": "阳光电源",
+                "weight": 3.76
+            },
+            {
+                "code": "sz300750",
+                "name": "宁德时代",
+                "weight": 3.35
+            },
+            {
+                "code": "hk00981",
+                "name": "中芯国际",
+                "weight": 3.31
+            },
+            {
+                "code": "sh600487",
+                "name": "亨通光电",
+                "weight": 3.28
+            },
+            {
+                "code": "sh601138",
+                "name": "工业富联",
+                "weight": 3.24
+            },
+            {
+                "code": "sh689009",
+                "name": "九号公司",
+                "weight": 3.2
+            }
         ]
     }
 }
